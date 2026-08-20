@@ -6,7 +6,7 @@ import HUD from '../components/HUD.jsx'
 import { useTrackingTest } from '../hooks/useTrackingTest.js'
 import { usePointerAim } from '../hooks/usePointerAim.js'
 
-const SPEEDS = [300, 600, 900]
+const SPEEDS = [150, 300, 600, 900]
 
 export default function TrackingTest({ onFinish, onExit, eDPI, sensMultiplier }) {
   const s = window.innerHeight / 1080
@@ -56,7 +56,7 @@ export default function TrackingTest({ onFinish, onExit, eDPI, sensMultiplier })
             <h2>跟枪测试</h2>
             <p className="overlay-sub">eDPI {eDPI} · 准星速度 = 倍率 × 鼠标移动</p>
             <ul className="overlay-steps">
-              <li>3 轮 × 10 秒，速度 {SPEEDS.join(' / ')} px/s 递增</li>
+              <li>{SPEEDS.length} 轮 × 10 秒，速度 {SPEEDS.join(' / ')} px/s 递增</li>
               <li>跟随球心移动，保持准星压在球内</li>
               <li>按 ESC 可随时解除锁定并暂停 / 退出</li>
             </ul>
@@ -96,7 +96,7 @@ export default function TrackingTest({ onFinish, onExit, eDPI, sensMultiplier })
 
       {phase === 'running' && (
         <>
-          <HUD left={`第 ${round + 1} / 3 轮`} right={`${eDPI} eDPI`}>
+          <HUD left={`第 ${round + 1} / ${SPEEDS.length} 轮`} right={`${eDPI} eDPI`}>
             {Math.max(0, timeLeft).toFixed(1)}s · {Math.round(speed)} px/s
           </HUD>
           {aim.locked && <div className="esc-hint">按 ESC 解除鼠标锁定</div>}

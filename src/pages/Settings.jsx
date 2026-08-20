@@ -156,7 +156,7 @@ export default function Settings({ settings, setSettings, records, onDeleteRecor
                 <Icon name="track" size={20} />
               </span>
               <span className="test-card-title">跟枪测试</span>
-              <span className="test-card-desc">3 轮 × 10s · 误差曲线与方向偏差，约 1 分钟</span>
+              <span className="test-card-desc">4 轮 × 10s · 150/300/600/900 px/s，约 40 秒</span>
             </button>
           </div>
           {!canStart && (

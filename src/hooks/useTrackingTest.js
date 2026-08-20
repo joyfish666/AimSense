@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { computeTrackingMetrics } from '../logic/metrics.js'
 
-export function useTrackingTest({ radius, margin, speeds = [300, 600, 900], roundMs = 10000, onFinish, active = true }) {
+export function useTrackingTest({ radius, margin, speeds = [150, 300, 600, 900], roundMs = 10000, onFinish, active = true }) {
   const [phase, setPhase] = useState('idle') // idle | running | done
-  const [round, setRound] = useState(0) // 0..2
+  const [round, setRound] = useState(0) // 0..N-1
   const [timeLeft, setTimeLeft] = useState(roundMs / 1000)
   const [ball, setBall] = useState(null)
   const [speed, setSpeed] = useState(0)

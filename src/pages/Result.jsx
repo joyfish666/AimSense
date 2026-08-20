@@ -45,7 +45,7 @@ function SignedErrorChart({ samples, radius }) {
   const yMax = Math.max(Math.abs(radius) * 1.8, ...samples.map((s) => Math.abs(s.signedError) * 1.05))
   const px = (t) => PAD.l + ((t - t0) / tMax) * (W - PAD.l - PAD.r)
   const py = (v) => PAD.t + (0.5 - v / (2 * yMax)) * (H - PAD.t - PAD.b)
-  const colors = ['#6366f1', '#e11d48', '#f59e0b']
+  const colors = ['#10b981', '#6366f1', '#e11d48', '#f59e0b']
   const rounds = [...new Set(samples.map((s) => s.round))]
 
   return (
