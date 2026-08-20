@@ -48,13 +48,20 @@ export function usePointerAim({ sensMultiplier }) {
     }
   }, [])
 
+  const rafPending = useRef(false)
   const handleMove = useCallback((e) => {
     const sens = sensRef.current
     const p = posRef.current
     const nx = Math.max(0, Math.min(window.innerWidth, p.x + e.movementX * sens))
     const ny = Math.max(0, Math.min(window.innerHeight, p.y + e.movementY * sens))
     posRef.current = { x: nx, y: ny }
-    setPos(posRef.current)
+    if (!rafPending.current) {
+      rafPending.current = true
+      requestAnimationFrame(() => {
+        rafPending.current = false
+        setPos({ ...posRef.current })
+      })
+    }
     return posRef.current
   }, [])
 

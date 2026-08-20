@@ -187,13 +187,23 @@ export default function Settings({ settings, setSettings, records, onDeleteRecor
 
         <section className="card">
           <h2 className="card-title">
-            <Icon name="history" size={17} /> 历史记录
+            <Icon name="history" size={17} /> 历史记录（分榜）
           </h2>
           <RecordList records={records} onDelete={onDeleteRecord} />
-          {records.length >= 2 && (
+          {records.filter((r) => r.type === 'clicking').length >= 2 && (
             <div style={{ marginTop: 16 }}>
-              <ScoreChart records={records} />
+              <h3 className="card-title" style={{ fontSize: 13 }}><Icon name="target" size={14} /> 定位分榜</h3>
+              <ScoreChart records={records} mode="clicking" />
             </div>
+          )}
+          {records.filter((r) => r.type === 'tracking').length >= 2 && (
+            <div style={{ marginTop: 16 }}>
+              <h3 className="card-title" style={{ fontSize: 13 }}><Icon name="track" size={14} /> 跟枪分榜</h3>
+              <ScoreChart records={records} mode="tracking" />
+            </div>
+          )}
+          {records.length >= 2 && records.filter((r) => r.type === 'clicking').length < 2 && records.filter((r) => r.type === 'tracking').length < 2 && (
+            <p className="muted" style={{ fontSize: 12.5, marginTop: 10 }}>每种类型至少2次测试后显示分榜趋势图。</p>
           )}
         </section>
 

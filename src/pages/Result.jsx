@@ -89,12 +89,11 @@ function fmtPct(v) {
 export default function Result({ record, records, onRetest, onRestartSame, onSwitchTest, onAdjustRetest }) {
   const { score, suggestion, signals } = record.analysis
   const shownScore = useCountUp(score, 900)
-  // 类型分榜最佳
+  // 类型分榜最佳（已移除全榜混合对比）
   const sameTypeRecords = records.filter((r) => r.type === record.type)
   const best = sameTypeRecords.length
     ? sameTypeRecords.reduce((a, r) => (r.score > a.score ? r : a), sameTypeRecords[0])
     : record
-  const bestAll = records.length ? records.reduce((a, r) => (r.score > a.score ? r : a), records[0]) : record
   const isBest = best.id === record.id
 
   const pct = (v) => `${Math.round(v)}%`
@@ -368,17 +367,15 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
 
         <section className="card">
           <h3 className="card-title">
-            <Icon name="history" size={16} /> 历史最佳对比（按类型分榜）
+            <Icon name="history" size={16} /> 历史最佳对比（分榜）
           </h3>
           {isBest ? (
             <p>
-              本次 {record.eDPI} eDPI（{score} 分）就是你的<b>{record.type === 'clicking' ? '定位' : '跟枪'}历史最佳</b> 🎉
-              {bestAll.id !== best.id && `（全榜最佳为 ${bestAll.eDPI} eDPI ${bestAll.score}分·${bestAll.type === 'clicking' ? '定位' : '跟枪'}）`}
+              本次 {record.eDPI} eDPI（{score} 分）就是你的<b>{record.type === 'clicking' ? '定位' : '跟枪'}分榜最佳</b> 🎉
             </p>
           ) : (
             <p>
               同类型最佳是 <b>{best.eDPI} eDPI</b>（{best.score} 分）。本次 {record.eDPI} eDPI 得 {score} 分，{score > best.score ? '已超越' : '尚未超过'}最佳。
-              {bestAll.id !== best.id && ` 全榜最佳 ${bestAll.eDPI} eDPI（${bestAll.score}分）`}
             </p>
           )}
           {fit && (
@@ -387,12 +384,7 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
             </p>
           )}
           <ScoreChart records={records} mode={record.type} />
-          <details style={{ marginTop: 12 }}>
-            <summary className="muted" style={{ cursor: 'pointer', fontSize: 12.5 }}>查看全榜（混合类型）</summary>
-            <div style={{ marginTop: 8 }}>
-              <ScoreChart records={records} mode="all" />
-            </div>
-          </details>
+          <p className="muted" style={{ fontSize: 11.5, marginTop: 8 }}>分榜制：定位与跟枪独立计分，不做跨类型混合对比。</p>
         </section>
       </main>
     </>

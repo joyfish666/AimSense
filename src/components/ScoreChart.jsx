@@ -1,9 +1,9 @@
 import { parabolicFit, sampleFit } from '../logic/fit.js'
 
-export default function ScoreChart({ records, mode = 'all' }) {
-  // mode: 'all' | 'clicking' | 'tracking'  甜蜜点按类型分榜拟合
+export default function ScoreChart({ records, mode = 'clicking' }) {
+  // mode: 'clicking' | 'tracking'  分榜拟合（已移除 all 混合）
   if (!records.length) return null
-  const filtered = mode === 'all' ? records : records.filter((r) => r.type === mode)
+  const filtered = records.filter((r) => r.type === mode)
   if (!filtered.length) return <p className="muted" style={{ fontSize: 12.5 }}>该类型暂无记录</p>
   const W = 720
   const H = 300

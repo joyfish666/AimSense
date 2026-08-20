@@ -2,18 +2,15 @@
  * 二次拟合 y = a*x^2 + b*x + c  (x = eDPI, y = score)
  * 最小二乘法求解正规方程，返回顶点（甜蜜点）与拟合质量
  */
-export function parabolicFit(points) {
-  // points: { x, y }[]
-  // 需要 ≥4 点且 x 有足够离散度，且 a < 0（开口向下才有极大值）
+function parabolicFitCore(points) {
   if (points.length < 4) return null
   const xs = points.map((p) => p.x)
   const uniq = new Set(xs).size
   if (uniq < 3) return null
   const minX = Math.min(...xs)
   const maxX = Math.max(...xs)
-  if (maxX - minX < 40) return null // eDPI 区间过小不拟合
+  if (maxX - minX < 40) return null
 
-  // 归一化 x 到 [-1,1] 区间以提升数值稳定性，再还原系数
   const mid = (minX + maxX) / 2
   const half = (maxX - minX) / 2 || 1
   const norm = points.map((p) => ({ xn: (p.x - mid) / half, y: p.y }))
@@ -27,8 +24,6 @@ export function parabolicFit(points) {
     s_x += x; s_x2 += x2; s_x3 += x3; s_x4 += x4
     s_y += y; s_xy += x * y; s_x2y += x2 * y
   }
-  // 正规方程矩阵 M * [c,b,a] = [s_y, s_xy, s_x2y]
-  // M = [[n, s_x, s_x2],[s_x, s_x2, s_x3],[s_x2, s_x3, s_x4]]
   const M = [
     [n, s_x, s_x2],
     [s_x, s_x2, s_x3],
@@ -39,15 +34,12 @@ export function parabolicFit(points) {
   if (!sol) return null
   const [c_n, b_n, a_n] = sol
   if (!Number.isFinite(a_n) || !Number.isFinite(b_n) || !Number.isFinite(c_n)) return null
-  if (a_n >= -1e-6) return null // 非下开口，弃用
+  if (a_n >= -1e-6) return null
 
-  // 归一化顶点 xn* = -b/(2a)
   const xnStar = -b_n / (2 * a_n)
-  // 还原到真实 eDPI
   const vertexX = xnStar * half + mid
   const vertexY = a_n * xnStar * xnStar + b_n * xnStar + c_n
 
-  // 计算 R² （归一化空间）
   const yMean = s_y / n
   let ssTot = 0, ssRes = 0
   for (const { xn: x, y } of norm) {
@@ -56,16 +48,13 @@ export function parabolicFit(points) {
     ssRes += (y - yPred) ** 2
   }
   const r2 = ssTot > 1e-9 ? 1 - ssRes / ssTot : 0
-  if (r2 < 0.15) return null // 拟合质量过差
+  if (r2 < 0.42) return null
 
-  // 还原真实系数 a,b,c  (y = a*x^2 + b*x + c)
-  // y = a_n*((x-mid)/half)^2 + b_n*((x-mid)/half) + c_n
   const a = a_n / (half * half)
   const b = b_n / half - (2 * a_n * mid) / (half * half)
   const c = a_n * (mid * mid) / (half * half) - b_n * mid / half + c_n
 
-  // 顶点需落在实测区间扩展 20% 内，否则不提示
-  const ext = (maxX - minX) * 0.2
+  const ext = (maxX - minX) * 0.15
   if (vertexX < minX - ext || vertexX > maxX + ext) return null
   if (vertexY < 0 || vertexY > 110) return null
 
@@ -78,12 +67,26 @@ export function parabolicFit(points) {
   }
 }
 
+export function parabolicFit(points) {
+  const core = parabolicFitCore(points)
+  if (!core) return null
+  if (points.length >= 5) {
+    let drift = 0
+    for (let k = 0; k < points.length; k++) {
+      const sub = points.filter((_, i) => i !== k)
+      const subFit = parabolicFitCore(sub)
+      if (!subFit) return null
+      drift = Math.max(drift, Math.abs(subFit.vertexX - core.vertexX))
+    }
+    if (drift > (core.maxX - core.minX) * 0.18) return null
+  }
+  return core
+}
+
 function solve3(M, B) {
-  // Gauss elimination 3x3
   const A = M.map((row, i) => [...row, B[i]])
   const n = 3
   for (let i = 0; i < n; i++) {
-    // pivot
     let maxRow = i
     for (let r = i + 1; r < n; r++) if (Math.abs(A[r][i]) > Math.abs(A[maxRow][i])) maxRow = r
     if (Math.abs(A[maxRow][i]) < 1e-9) return null
@@ -102,7 +105,6 @@ function solve3(M, B) {
   return x
 }
 
-// 生成拟合曲线采样点用于绘图
 export function sampleFit(fit, count = 60) {
   if (!fit) return []
   const { a, b, c, minX, maxX } = fit

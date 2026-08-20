@@ -30,17 +30,34 @@ export function useTrackingTest({
   const lastFrameRef = useRef(0)
   const hoverEndRef = useRef(0)
   const segmentEndRef = useRef(0)
+  const tierRef = useRef(0)
+  const repRef = useRef(0)
+  const hoveringRef = useRef(false)
+  const marginRef = useRef(margin)
+  const speedsRef = useRef(speeds)
+  const modeRef = useRef(mode)
+  const radiusRef = useRef(radius)
+  useEffect(() => { marginRef.current = margin }, [margin])
+  useEffect(() => { speedsRef.current = speeds }, [speeds])
+  useEffect(() => { modeRef.current = mode }, [mode])
+  useEffect(() => { radiusRef.current = radius }, [radius])
+  useEffect(() => { tierRef.current = tier }, [tier])
+  useEffect(() => { repRef.current = rep }, [rep])
+  useEffect(() => { hoveringRef.current = hovering }, [hovering])
 
   const createBall = (tierIdx) => {
     const { innerWidth: w, innerHeight: h } = window
-    const s = speeds[Math.min(tierIdx, speeds.length - 1)] * (h / 1080)
+    const curSpeeds = speedsRef.current
+    const curMode = modeRef.current
+    const s = curSpeeds[Math.min(tierIdx, curSpeeds.length - 1)] * (h / 1080)
     let x, y, vx, vy
-    if (mode === 'horizontal') {
+    if (curMode === 'horizontal') {
       // 左右跟枪：水平移动，随机起始在中线偏左/右，垂直位置随机
       const fromLeft = Math.random() > 0.5
-      x = fromLeft ? margin + (w - 2 * margin) * 0.15 : w - margin - (w - 2 * margin) * 0.15
+      const curMargin = marginRef.current
+      x = fromLeft ? curMargin + (w - 2 * curMargin) * 0.15 : w - curMargin - (w - 2 * curMargin) * 0.15
       y = h * 0.5 + (Math.random() - 0.5) * (h * 0.35)
-      y = Math.max(margin, Math.min(h - margin, y))
+      y = Math.max(curMargin, Math.min(h - curMargin, y))
       vx = fromLeft ? s : -s
       vy = 0
     } else {
@@ -64,6 +81,9 @@ export function useTrackingTest({
     roundsRef.current = []
     tierSamplesRef.current = []
     cursorRef.current = { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+    tierRef.current = 0
+    repRef.current = 0
+    hoveringRef.current = true
     setTier(0)
     setRep(0)
     const now = performance.now()
@@ -79,6 +99,10 @@ export function useTrackingTest({
 
   useEffect(() => {
     if (phase !== 'running') return
+    // onFinish via ref to avoid effect recreation on callback identity change
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional stable ref pattern
+    const onFinishRef = { current: onFinish }
+    onFinishRef.current = onFinish
     const loop = (now) => {
       if (!active) {
         lastFrameRef.current = now
@@ -93,17 +117,17 @@ export function useTrackingTest({
         return
       }
 
-      if (hovering) {
+      if (hoveringRef.current) {
         const prog = Math.min(1, 1 - (hoverEndRef.current - now) / hoverMs)
         setHoverProgress(prog)
         setBall({ ...b, hovering: true, hoverProgress: prog })
         // update tier time left
-        const tierIdx = tier
-        const repIdx = rep
+        const repIdx = repRef.current
         const elapsedInTier = repIdx * (hoverMs + segmentTrackMs) + prog * hoverMs
         const totalTier = repeats * (hoverMs + segmentTrackMs)
         setTimeLeft(Math.max(0, (totalTier - elapsedInTier) / 1000))
         if (now >= hoverEndRef.current) {
+          hoveringRef.current = false
           setHovering(false)
           setHoverProgress(1)
           setBall({ ...b, hovering: false, hoverProgress: 1 })
@@ -115,14 +139,16 @@ export function useTrackingTest({
 
       // moving phase
       const { innerWidth: w, innerHeight: h } = window
+      const curMargin = marginRef.current
+      const curRadius = radiusRef.current
       b.x += (b.vx * dt) / 1000
       b.y += (b.vy * dt) / 1000
-      if (b.x < margin || b.x > w - margin) {
-        b.x = Math.max(margin, Math.min(w - margin, b.x))
+      if (b.x < curMargin || b.x > w - curMargin) {
+        b.x = Math.max(curMargin, Math.min(w - curMargin, b.x))
         b.vx = -b.vx
       }
-      if (b.y < margin || b.y > h - margin) {
-        b.y = Math.max(margin, Math.min(h - margin, b.y))
+      if (b.y < curMargin || b.y > h - curMargin) {
+        b.y = Math.max(curMargin, Math.min(h - curMargin, b.y))
         b.vy = -b.vy
       }
 
@@ -139,45 +165,51 @@ export function useTrackingTest({
         cursorY: c.y,
         error: dist,
         signedError,
-        radius,
-        tier,
-        rep,
+        radius: curRadius,
+        tier: tierRef.current,
+        rep: repRef.current,
       })
 
       // progress within segment for timeLeft
-      const elapsedInTier = rep * (hoverMs + segmentTrackMs) + hoverMs + (now - (segmentEndRef.current - segmentTrackMs))
+      const elapsedInTier = repRef.current * (hoverMs + segmentTrackMs) + hoverMs + (now - (segmentEndRef.current - segmentTrackMs))
       const totalTier = repeats * (hoverMs + segmentTrackMs)
       setTimeLeft(Math.max(0, (totalTier - elapsedInTier) / 1000))
       setBall({ ...b, hovering: false, hoverProgress: 1 })
 
       if (now >= segmentEndRef.current) {
-        const nextRep = rep + 1
+        const nextRep = repRef.current + 1
         if (nextRep < repeats) {
           // next ball in same tier
+          repRef.current = nextRep
           setRep(nextRep)
-          createBall(tier)
+          createBall(tierRef.current)
           hoverEndRef.current = now + hoverMs
+          hoveringRef.current = true
           setHovering(true)
           setHoverProgress(0)
         } else {
           // tier finished, push tier aggregate
           roundsRef.current.push({
             speed: speedRef.current,
-            radius,
+            radius: curRadius,
             samples: tierSamplesRef.current.slice(),
           })
           tierSamplesRef.current = []
-          const nextTier = tier + 1
-          if (nextTier >= speeds.length) {
+          const nextTier = tierRef.current + 1
+          const curSpeeds = speedsRef.current
+          if (nextTier >= curSpeeds.length) {
             const metrics = computeTrackingMetrics(roundsRef.current)
             setPhase('done')
-            onFinish?.(metrics)
+            onFinishRef.current?.(metrics)
             return
           }
+          tierRef.current = nextTier
+          repRef.current = 0
           setTier(nextTier)
           setRep(0)
           createBall(nextTier)
           hoverEndRef.current = now + hoverMs
+          hoveringRef.current = true
           setHovering(true)
           setHoverProgress(0)
           setTimeLeft(repeats * (hoverMs + segmentTrackMs) / 1000)
@@ -187,8 +219,7 @@ export function useTrackingTest({
     }
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, active, hovering, tier, rep, hoverMs, segmentTrackMs, repeats, mode, speeds])
+  }, [phase, active, hoverMs, segmentTrackMs, repeats, onFinish])
 
   const handlePointerMove = (x, y) => {
     cursorRef.current = { x, y }

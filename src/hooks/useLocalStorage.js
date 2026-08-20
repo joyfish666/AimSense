@@ -14,8 +14,16 @@ export function useLocalStorage(key, initialValue) {
   useEffect(() => {
     try {
       localStorage.setItem(key, JSON.stringify(value))
-    } catch {
-      /* ignore */
+    } catch (e) {
+      // 配额超限时尝试驱逐旧记录（仅对 records 生效）
+      if (e && e.name === 'QuotaExceededError' && key === 'aimsense.records' && Array.isArray(value) && value.length > 20) {
+        try {
+          const trimmed = value.slice(Math.floor(value.length / 2))
+          localStorage.setItem(key, JSON.stringify(trimmed))
+        } catch {
+          /* ignore */
+        }
+      }
     }
   }, [key, value])
 

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { computeClickingMetrics } from '../logic/metrics.js'
 
 function countOvershoots(traj, ball, radius) {
@@ -46,6 +46,11 @@ export function useClickingTest({ radius, minDist, margin, targetCount = 20, onF
   const trajRef = useRef([])
   const startRef = useRef(0)
   const sizeRef = useRef({ w: window.innerWidth, h: window.innerHeight })
+  useEffect(() => {
+    const onResize = () => { sizeRef.current = { w: window.innerWidth, h: window.innerHeight } }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   const genBall = () => {
     const { w, h } = sizeRef.current

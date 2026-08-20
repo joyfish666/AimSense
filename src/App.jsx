@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Settings from './pages/Settings.jsx'
 import ClickingTest from './pages/ClickingTest.jsx'
 import TrackingTest from './pages/TrackingTest.jsx'
@@ -10,6 +10,16 @@ import { dbg } from './logic/debugLog.js'
 
 const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`
 
+// 跟枪采样 60Hz -> 10Hz 降采样，减小 localStorage 体积（约 1/6）
+function downsampleTrackingSamples(samples, keepEvery = 6) {
+  if (!samples || samples.length <= keepEvery) return samples
+  const out = []
+  for (let i = 0; i < samples.length; i += keepEvery) out.push(samples[i])
+  const last = samples[samples.length - 1]
+  if (out[out.length - 1] !== last) out.push(last)
+  return out
+}
+
 export default function App() {
   const [settings, setSettings] = useLocalStorage('aimsense.settings', {
     dpi: 800,
@@ -17,6 +27,8 @@ export default function App() {
   })
   const [records, setRecords] = useLocalStorage('aimsense.records', [])
   const [route, setRoute] = useState({ page: 'settings' })
+  const recordsRef = useRef(records)
+  useEffect(() => { recordsRef.current = records }, [records])
 
   useEffect(() => {
     dbg('app:settings-state', settings)
@@ -37,7 +49,18 @@ export default function App() {
       const edpi = calcEDPI(dpi, sensMultiplier)
       const type = route.page
       dbg('app:finish', { type, snap, eDPI: edpi })
-      const analysis = analyzeTest({ [type]: { metrics }, type, eDPI: edpi, history: records, sensMultiplier })
+      // 使用 recordsRef 避免闭包 stale，同时对跟枪样本 10Hz 降采样落盘
+      const history = recordsRef.current
+      const analysis = analyzeTest({ [type]: { metrics }, type, eDPI: edpi, history, sensMultiplier })
+      let clickingData
+      let trackingData
+      if (type === 'clicking') {
+        clickingData = { metrics, shots: metrics.shots, radius: metrics.radius }
+      } else {
+        const downsampled = downsampleTrackingSamples(metrics.samples, 6)
+        const metricsDown = { ...metrics, samples: downsampled }
+        trackingData = { metrics: metricsDown, samples: downsampled, radius: metrics.radius }
+      }
       const record = {
         id: newId(),
         type,
@@ -45,16 +68,21 @@ export default function App() {
         dpi,
         sensMultiplier,
         eDPI: edpi,
-        clicking: type === 'clicking' ? { metrics, shots: metrics.shots, radius: metrics.radius } : undefined,
-        tracking: type === 'tracking' ? { metrics, samples: metrics.samples, radius: metrics.radius } : undefined,
+        clicking: clickingData,
+        tracking: trackingData,
         score: analysis.total,
         suggestion: analysis.suggestion.action,
         analysis,
       }
-      setRecords((prev) => [...prev, record])
+      setRecords((prev) => {
+        const next = [...prev, record]
+        // 配额保护：超 100 条自动驱逐最旧的 20 条
+        if (next.length > 100) return next.slice(next.length - 100)
+        return next
+      })
       setRoute({ page: 'result', record })
     },
-    [route, settings, setRecords, records],
+    [route, settings, setRecords],
   )
 
   const handleDeleteRecord = (id) => {
