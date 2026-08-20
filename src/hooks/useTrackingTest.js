@@ -6,7 +6,7 @@ export function useTrackingTest({
   margin,
   speeds = [150, 300, 600, 900],
   repeats = 3,
-  hoverMs = 900,
+  hoverMs = 1300,
   segmentTrackMs = 4000,
   mode = 'horizontal', // 'horizontal' | 'random'
   onFinish,
@@ -188,7 +188,7 @@ export function useTrackingTest({
     rafRef.current = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(rafRef.current)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase, active, hovering, tier, rep, hoverMs, segmentTrackMs, repeats, mode])
+  }, [phase, active, hovering, tier, rep, hoverMs, segmentTrackMs, repeats, mode, speeds])
 
   const handlePointerMove = (x, y) => {
     cursorRef.current = { x, y }

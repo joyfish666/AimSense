@@ -766,9 +766,16 @@ input[type='range'] {
   display: flex;
   gap: 8px;
   margin: 12px 0 4px;
+  width: 100%;
 }
 .mode-btn {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
   padding: 9px 10px;
   font-size: 13px;
   font-weight: 600;
@@ -780,6 +787,48 @@ input[type='range'] {
   border-color: var(--accent);
   background: var(--accent-soft);
   color: var(--accent);
+}
+.badge-rec {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  line-height: 1;
+}
+.speed-select {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin: 8px 0 4px;
+  width: 100%;
+}
+.speed-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 999px;
+  border: 1.5px solid var(--border);
+  background: var(--surface);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+.speed-chip.active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+.speed-chip input {
+  display: none;
 }
 .hover-hint {
   font-size: 12px;
