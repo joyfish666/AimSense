@@ -84,7 +84,7 @@ function fmtPct(v) {
   return `${(v * 100).toFixed(0)}%`
 }
 
-export default function Result({ record, records, onRetest, onRestartSame, onSwitchTest }) {
+export default function Result({ record, records, onRetest, onRestartSame, onSwitchTest, onAdjustRetest }) {
   const { score, suggestion, signals } = record.analysis
   const shownScore = useCountUp(score, 900)
   const best = records.reduce((a, r) => (r.score > a.score ? r : a), record)
@@ -106,6 +106,10 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
         : '保持'
   const otherLabel = record.type === 'clicking' ? '去做跟枪测试' : '去做定位测试'
   const sameLabel = record.type === 'clicking' ? '重测定位' : '重测跟枪'
+  const curSens = Number(record.sensMultiplier) || 1
+  const quickSteps = [-0.2, -0.1, -0.05, 0.05, 0.1, 0.2]
+  const recommendedDelta =
+    suggestion.level === 'high' ? -0.1 : suggestion.level === 'low' ? 0.1 : null
 
   return (
     <>
@@ -150,6 +154,39 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
             </div>
           </div>
           {isBest && <div className="badge-best result-best-badge">历史最佳</div>}
+        </section>
+
+        <section className="card">
+          <h3 className="card-title">
+            <Icon name="sliders" size={16} /> 页面灵敏度快速微调
+          </h3>
+          <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
+            当前页面灵敏度 <b>{curSens.toFixed(2)}</b> × {record.dpi} DPI = <b>{record.eDPI} eDPI</b>
+            {recommendedDelta != null && ` · 推荐 ${recommendedDelta > 0 ? '升高' : '降低'} ${Math.abs(recommendedDelta).toFixed(2)} 试试`}
+            （点击直接以新灵敏度重测本项）
+          </p>
+          <div className="quick-group">
+            {quickSteps.map((d) => {
+              const next = Math.max(0.05, Math.min(5, Math.round((curSens + d) * 100) / 100))
+              const isRecommended = d === recommendedDelta
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  className={`btn ${isRecommended ? 'btn-primary' : 'btn-secondary'} btn-quick`}
+                  onClick={() => onAdjustRetest?.(d)}
+                  title={`调至 ${next.toFixed(2)} 再测`}
+                >
+                  {d > 0 ? `+${d.toFixed(2).replace('0.', '.')}` : d.toFixed(2).replace('0.', '.').replace('-0', '-.')} → {next.toFixed(2)}
+                </button>
+              )
+            })}
+          </div>
+          {recommendedDelta != null && (
+            <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
+              建议：检测到灵敏度{suggestion.level === 'high' ? '偏高' : '偏低'}，可先点上方高亮按钮一键微调重测。
+            </p>
+          )}
         </section>
 
         {signals.length > 0 && (

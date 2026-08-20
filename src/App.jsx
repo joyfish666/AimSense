@@ -82,6 +82,19 @@ export default function App() {
     const snap = { dpi: r.dpi, sensMultiplier: r.sensMultiplier }
     setRoute({ page: nextType, settings: snap })
   }, [route.record])
+  const handleAdjustRetest = useCallback(
+    (delta) => {
+      const r = route.record
+      if (!r) return setRoute({ page: 'settings' })
+      const cur = Number(r.sensMultiplier) || 1
+      const nextSens = Math.max(0.05, Math.min(5, Math.round((cur + delta) * 100) / 100))
+      const snap = { dpi: r.dpi, sensMultiplier: nextSens }
+      setSettings(snap)
+      dbg('app:adjust-retest', { delta, from: cur, to: nextSens, type: r.type })
+      setRoute({ page: r.type, settings: snap })
+    },
+    [route.record, setSettings],
+  )
 
   if (route.page === 'clicking') {
     return (
@@ -112,6 +125,7 @@ export default function App() {
           onRetest={handleRetest}
           onRestartSame={handleRestartSame}
           onSwitchTest={handleSwitchTest}
+          onAdjustRetest={handleAdjustRetest}
         />
       </div>
     )
