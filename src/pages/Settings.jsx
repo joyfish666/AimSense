@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { calcEDPI, validateDPI, validateSens } from '../logic/sensitivity.js'
+import { calcEDPI, validateDPI, validateSens, edpiToCm360, getEDPIWarning } from '../logic/sensitivity.js'
 import { useCountUp } from '../hooks/useCountUp.js'
 import { dbg } from '../logic/debugLog.js'
 import Icon from '../components/Icon.jsx'
 import Nav from '../components/Nav.jsx'
 import RecordList from '../components/RecordList.jsx'
+import ScoreChart from '../components/ScoreChart.jsx'
 import DebugPanel from '../components/DebugPanel.jsx'
 
 const SENS_STEPS = [-0.2, -0.1, -0.05, 0.05, 0.1, 0.2]
@@ -137,6 +138,19 @@ export default function Settings({ settings, setSettings, records, onDeleteRecor
               {eDPI != null ? `= ${dpiNum} DPI × ${sensNum}` : '未填写 = 800 DPI × 1 （页面灵敏度）'}
             </span>
           </div>
+          {eDPI != null && (
+            <div className="edpi-extra" style={{ marginTop: 10, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span className="muted" style={{ fontSize: 12.5 }}>
+                约 <b>{edpiToCm360(eDPI)?.toFixed(1)} cm/360</b>
+                <span style={{ fontWeight: 400 }}>（CS:GO m_yaw 0.022 估算，仅参考）</span>
+              </span>
+              {getEDPIWarning(eDPI) && (
+                <span className={`edpi-warn warn-${getEDPIWarning(eDPI).level}`} style={{ fontSize: 12, padding: '2px 8px', borderRadius: 99, background: getEDPIWarning(eDPI).level === 'high' ? '#fef2f2' : '#fffbeb', color: getEDPIWarning(eDPI).level === 'high' ? '#dc2626' : '#d97706', border: `1px solid ${getEDPIWarning(eDPI).level === 'high' ? '#fecaca' : '#fde68a'}` }}>
+                  ⚠ {getEDPIWarning(eDPI).text}
+                </span>
+              )}
+            </div>
+          )}
         </section>
 
         <section className="card">
@@ -176,6 +190,11 @@ export default function Settings({ settings, setSettings, records, onDeleteRecor
             <Icon name="history" size={17} /> 历史记录
           </h2>
           <RecordList records={records} onDelete={onDeleteRecord} />
+          {records.length >= 2 && (
+            <div style={{ marginTop: 16 }}>
+              <ScoreChart records={records} />
+            </div>
+          )}
         </section>
 
         <section className="card card-info">

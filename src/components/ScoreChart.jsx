@@ -1,9 +1,14 @@
-export default function ScoreChart({ records }) {
+import { parabolicFit, sampleFit } from '../logic/fit.js'
+
+export default function ScoreChart({ records, mode = 'all' }) {
+  // mode: 'all' | 'clicking' | 'tracking'  甜蜜点按类型分榜拟合
   if (!records.length) return null
+  const filtered = mode === 'all' ? records : records.filter((r) => r.type === mode)
+  if (!filtered.length) return <p className="muted" style={{ fontSize: 12.5 }}>该类型暂无记录</p>
   const W = 720
   const H = 300
   const PAD = { t: 24, r: 16, b: 36, l: 48 }
-  const sorted = [...records].sort((a, b) => a.eDPI - b.eDPI)
+  const sorted = [...filtered].sort((a, b) => a.eDPI - b.eDPI)
   const minEDPI = Math.min(...sorted.map((r) => r.eDPI))
   const maxEDPI = Math.max(...sorted.map((r) => r.eDPI))
   const range = Math.max(1, maxEDPI - minEDPI)
@@ -20,6 +25,13 @@ export default function ScoreChart({ records }) {
     sorted.length > 1
       ? `${sorted.map((r, i) => `${i === 0 ? 'M' : 'L'}${px(r.eDPI)} ${py(r.score)}`).join(' ')} L${px(sorted.at(-1).eDPI)} ${baseY} L${px(sorted[0].eDPI)} ${baseY} Z`
       : ''
+
+  // 拟合
+  const fit = parabolicFit(filtered.map((r) => ({ x: r.eDPI, y: r.score })))
+  const fitSamples = fit ? sampleFit(fit) : []
+  const fitPath = fitSamples.length
+    ? fitSamples.map((p, i) => `${i === 0 ? 'M' : 'L'}${px(p.x)} ${py(p.y)}`).join(' ')
+    : ''
 
   return (
     <div className="chart-wrap">
@@ -47,6 +59,7 @@ export default function ScoreChart({ records }) {
           )
         })}
         {areaPath && <path d={areaPath} className="chart-area" />}
+        {fitPath && <path d={fitPath} className="chart-fit" style={{ fill: 'none', stroke: '#f59e0b', strokeWidth: 2, strokeDasharray: '6 4', opacity: 0.9 }} />}
         {sorted.map((r, i) => (
           <g key={r.id}>
             {i > 0 && (
@@ -76,8 +89,17 @@ export default function ScoreChart({ records }) {
             </text>
           </g>
         )}
+        {fit && (
+          <g>
+            <circle cx={px(fit.vertexX)} cy={py(fit.vertexY)} r={5} style={{ fill: '#f59e0b', stroke: '#fff', strokeWidth: 2 }} />
+            <text x={px(fit.vertexX)} y={py(fit.vertexY) - 10} textAnchor="middle" className="axis-text" style={{ fill: '#d97706', fontWeight: 600, fontSize: 11 }}>
+              拟合甜蜜点 {fit.vertexX} eDPI ≈ {fit.vertexY}分 (R² {fit.r2.toFixed(2)})
+            </text>
+          </g>
+        )}
       </svg>
-      <p className="chart-caption">横轴 eDPI · 纵轴得分（0-100）· 光环标记个人最佳</p>
+      <p className="chart-caption">横轴 eDPI · 纵轴得分（0-100）· 光环标记实测最佳{fit ? ' · 橙色虚线为二次拟合甜蜜点' : ''}</p>
+      {fit && <p className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>拟合仅供参考：基于 {filtered.length} 次测试，R² {fit.r2.toFixed(2)}，建议在 {fit.vertexX} 附近再测 1-2 组验证。</p>}
     </div>
   )
 }

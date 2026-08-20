@@ -26,7 +26,8 @@ export function computeClickingMetrics(shots, totalMs, radius) {
       ? (secondHalfAvg - firstHalfAvg) / firstHalfAvg
       : 0
 
-  const closeMisses = shots.filter((s) => s.clicks >= 2 && s.offset < 0.8 * radius).length
+  // 与 analyze.js THRESHOLDS.closeMissOffset (0.35r) 保持一致，基于归一化阈值
+  const closeMisses = shots.filter((s) => s.clicks >= 2 && s.offset < 0.35 * radius).length
 
   return {
     shots,

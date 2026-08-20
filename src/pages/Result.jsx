@@ -2,6 +2,8 @@ import ScoreChart from '../components/ScoreChart.jsx'
 import Icon from '../components/Icon.jsx'
 import Nav from '../components/Nav.jsx'
 import { useCountUp } from '../hooks/useCountUp.js'
+import { edpiToCm360, getEDPIWarning } from '../logic/sensitivity.js'
+import { parabolicFit } from '../logic/fit.js'
 
 function TrajChart({ shots, radius }) {
   const W = 720
@@ -31,7 +33,7 @@ function TrajChart({ shots, radius }) {
           轨迹以球心为原点（所有目标叠加）
         </text>
       </svg>
-      <p className="chart-caption">曲线越过内圈又折返的次数 = 过冲次数</p>
+      <p className="chart-caption">曲线越过内圈又折返的次数 = 过冲次数（已要求进入 0.45r 内再折返才计数）</p>
     </div>
   )
 }
@@ -74,7 +76,7 @@ function SignedErrorChart({ samples, radius }) {
         ))}
       </svg>
       <p className="chart-caption">
-        正 = 光标超前（灵敏度可能偏高），负 = 光标落后（可能偏低），虚线带 = 目标半径
+        正 = 光标超前（灵敏度可能偏高），负 = 光标落后（可能偏低），虚线带 = 目标半径 · 加权阈值按速度分层(0.55→0.30)
       </p>
     </div>
   )
@@ -87,7 +89,12 @@ function fmtPct(v) {
 export default function Result({ record, records, onRetest, onRestartSame, onSwitchTest, onAdjustRetest }) {
   const { score, suggestion, signals } = record.analysis
   const shownScore = useCountUp(score, 900)
-  const best = records.reduce((a, r) => (r.score > a.score ? r : a), record)
+  // 类型分榜最佳
+  const sameTypeRecords = records.filter((r) => r.type === record.type)
+  const best = sameTypeRecords.length
+    ? sameTypeRecords.reduce((a, r) => (r.score > a.score ? r : a), sameTypeRecords[0])
+    : record
+  const bestAll = records.length ? records.reduce((a, r) => (r.score > a.score ? r : a), records[0]) : record
   const isBest = best.id === record.id
 
   const pct = (v) => `${Math.round(v)}%`
@@ -108,8 +115,17 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
   const sameLabel = record.type === 'clicking' ? '重测定位' : '重测跟枪'
   const curSens = Number(record.sensMultiplier) || 1
   const quickSteps = [-0.2, -0.1, -0.05, 0.05, 0.1, 0.2]
-  const recommendedDelta =
-    suggestion.level === 'high' ? -0.1 : suggestion.level === 'low' ? 0.1 : null
+  const delta = suggestion.delta ?? 0
+  const hasDelta = suggestion.level !== 'keep' && Math.abs(delta) > 0.001
+  // 拟合甜蜜点（同类型）
+  const fit = sameTypeRecords.length >= 4 ? parabolicFit(sameTypeRecords.map((r) => ({ x: r.eDPI, y: r.score }))) : null
+  const cm360 = edpiToCm360(record.eDPI)
+  const warn = getEDPIWarning(record.eDPI)
+
+  // 找最接近推荐 delta 的快捷按钮高亮
+  const closestStep = hasDelta
+    ? quickSteps.reduce((bestV, v) => (Math.abs(v - delta) < Math.abs(bestV - delta) ? v : bestV), quickSteps[0])
+    : null
 
   return (
     <>
@@ -120,8 +136,13 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
             <h2>测试结果</h2>
             <p className="muted">
               {record.type === 'clicking' ? '定位测试' : '跟枪测试'} · {record.dpi} DPI × {record.sensMultiplier} ={' '}
-              <b>{record.eDPI} eDPI</b> · {new Date(record.timestamp).toLocaleString('zh-CN')}
+              <b>{record.eDPI} eDPI</b> · 约 {cm360?.toFixed(1)} cm/360 · {new Date(record.timestamp).toLocaleString('zh-CN')}
             </p>
+            {warn && (
+              <span style={{ fontSize: 12, padding: '2px 8px', borderRadius: 99, background: warn.level === 'high' ? '#fef2f2' : '#fffbeb', color: warn.level === 'high' ? '#dc2626' : '#d97706', border: `1px solid ${warn.level === 'high' ? '#fecaca' : '#fde68a'}`, display: 'inline-block', marginTop: 6 }}>
+                ⚠ {warn.text}
+              </span>
+            )}
           </div>
           <div className="result-header-actions">
             <button className="btn btn-secondary" onClick={onRestartSame}>
@@ -146,6 +167,12 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
               <span className={`suggestion-tag tag-${suggestion.level}`}>{tagText}</span>
               <span>{suggestion.action}</span>
             </div>
+            {hasDelta && (
+              <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 0' }}>
+                推荐幅度 <b>{delta > 0 ? '+' : ''}{delta.toFixed(2)}</b> → 目标 <b>{suggestion.targetSens?.toFixed(2)}</b>（{suggestion.targetEDPI} eDPI，{suggestion.deltaEDPI > 0 ? '+' : ''}{suggestion.deltaEDPI}）
+                · 置信度影响幅度，已按当前灵敏度等比微调
+              </p>
+            )}
             <div className="conf">
               <div className="conf-bar">
                 <div className="conf-fill" style={{ width: confW }} />
@@ -153,7 +180,7 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
               <span className="muted conf-text">置信度 {confPct}</span>
             </div>
           </div>
-          {isBest && <div className="badge-best result-best-badge">历史最佳</div>}
+          {isBest && <div className="badge-best result-best-badge">同类型最佳</div>}
         </section>
 
         <section className="card">
@@ -161,14 +188,15 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
             <Icon name="sliders" size={16} /> 页面灵敏度快速微调
           </h3>
           <p className="muted" style={{ fontSize: 12.5, margin: '0 0 10px' }}>
-            当前页面灵敏度 <b>{curSens.toFixed(2)}</b> × {record.dpi} DPI = <b>{record.eDPI} eDPI</b>
-            {recommendedDelta != null && ` · 推荐 ${recommendedDelta > 0 ? '升高' : '降低'} ${Math.abs(recommendedDelta).toFixed(2)} 试试`}
+            当前页面灵敏度 <b>{curSens.toFixed(2)}</b> × {record.dpi} DPI = <b>{record.eDPI} eDPI</b>（约 {cm360?.toFixed(1)} cm/360）
+            {hasDelta && ` · 推荐 ${delta > 0 ? '升高' : '降低'} ${Math.abs(delta).toFixed(2)} 至 ${suggestion.targetSens?.toFixed(2)}`}
             （点击直接以新灵敏度重测本项）
           </p>
           <div className="quick-group">
             {quickSteps.map((d) => {
               const next = Math.max(0.05, Math.min(5, Math.round((curSens + d) * 100) / 100))
-              const isRecommended = d === recommendedDelta
+              const isRecommended = hasDelta && d === closestStep
+              // 若推荐值不在 6 档中，额外显示一键推荐按钮
               return (
                 <button
                   key={d}
@@ -181,10 +209,21 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
                 </button>
               )
             })}
+            {hasDelta && !quickSteps.includes(delta) && (
+              <button
+                type="button"
+                className="btn btn-primary btn-quick"
+                onClick={() => onAdjustRetest?.(delta)}
+                title={`推荐调至 ${suggestion.targetSens?.toFixed(2)} 再测`}
+                style={{ borderStyle: 'dashed' }}
+              >
+                推荐 {delta > 0 ? `+${delta.toFixed(2)}` : delta.toFixed(2)} → {suggestion.targetSens?.toFixed(2)} ★
+              </button>
+            )}
           </div>
-          {recommendedDelta != null && (
+          {hasDelta && (
             <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>
-              建议：检测到灵敏度{suggestion.level === 'high' ? '偏高' : '偏低'}，可先点上方高亮按钮一键微调重测。
+              建议：检测到灵敏度{suggestion.level === 'high' ? '偏高' : '偏低'}，幅度已根据偏差大小量化，高亮为最接近档，虚线为精确推荐。
             </p>
           )}
         </section>
@@ -329,19 +368,31 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
 
         <section className="card">
           <h3 className="card-title">
-            <Icon name="history" size={16} /> 历史最佳对比
+            <Icon name="history" size={16} /> 历史最佳对比（按类型分榜）
           </h3>
-          {best.id === record.id ? (
+          {isBest ? (
             <p>
-              本次 {record.eDPI} eDPI（{score} 分）就是你的<b>历史最佳</b> 🎉
+              本次 {record.eDPI} eDPI（{score} 分）就是你的<b>{record.type === 'clicking' ? '定位' : '跟枪'}历史最佳</b> 🎉
+              {bestAll.id !== best.id && `（全榜最佳为 ${bestAll.eDPI} eDPI ${bestAll.score}分·${bestAll.type === 'clicking' ? '定位' : '跟枪'}）`}
             </p>
           ) : (
             <p>
-              历史最佳是 <b>{best.eDPI} eDPI</b>（{best.score} 分，{best.type === 'clicking' ? '定位' : '跟枪'}测试）。
-              本次 {record.eDPI} eDPI 得 {score} 分，{score > best.score ? '已超越' : '尚未超过'}最佳。
+              同类型最佳是 <b>{best.eDPI} eDPI</b>（{best.score} 分）。本次 {record.eDPI} eDPI 得 {score} 分，{score > best.score ? '已超越' : '尚未超过'}最佳。
+              {bestAll.id !== best.id && ` 全榜最佳 ${bestAll.eDPI} eDPI（${bestAll.score}分）`}
             </p>
           )}
-          <ScoreChart records={records} />
+          {fit && (
+            <p className="muted" style={{ fontSize: 12.5, margin: '6px 0 8px' }}>
+              拟合甜蜜点：<b>{fit.vertexX} eDPI ≈ {fit.vertexY} 分</b>（R² {fit.r2.toFixed(2)}，{sameTypeRecords.length} 次同类型测试拟合）→ 建议在该值附近再测验证。
+            </p>
+          )}
+          <ScoreChart records={records} mode={record.type} />
+          <details style={{ marginTop: 12 }}>
+            <summary className="muted" style={{ cursor: 'pointer', fontSize: 12.5 }}>查看全榜（混合类型）</summary>
+            <div style={{ marginTop: 8 }}>
+              <ScoreChart records={records} mode="all" />
+            </div>
+          </details>
         </section>
       </main>
     </>

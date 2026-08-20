@@ -3,20 +3,32 @@ import { computeClickingMetrics } from '../logic/metrics.js'
 
 function countOvershoots(traj, ball, radius) {
   if (traj.length < 4) return 0
-  const jitter = radius * 0.2
+  // 改进：jitter 按半径 15% 且结合最小穿越幅度，避免高频抖动误判
+  const jitter = radius * 0.15
+  const minExcursion = radius * 0.45 // 必须曾进入 0.45r 内再折返才算过冲
   let prevD = Math.hypot(traj[0].x - ball.x, traj[0].y - ball.y)
   let prevDir = 0 // -1 接近 / +1 远离
-  let approachRun = 0 // 持续接近的采样段数
+  let approachRun = 0
+  let minDInApproach = prevD
   let overshoots = 0
   for (let i = 1; i < traj.length; i++) {
     const d = Math.hypot(traj[i].x - ball.x, traj[i].y - ball.y)
     const diff = d - prevD
     const dir = Math.abs(diff) < jitter ? prevDir : diff > 0 ? 1 : -1
     if (dir !== prevDir) {
-      if (prevDir === -1 && dir === 1 && approachRun >= 2) overshoots++
-      approachRun = dir === -1 ? 1 : 0
+      if (prevDir === -1 && dir === 1 && approachRun >= 2 && minDInApproach < minExcursion) {
+        overshoots++
+      }
+      if (dir === -1) {
+        approachRun = 1
+        minDInApproach = d
+      } else {
+        approachRun = 0
+        minDInApproach = Infinity
+      }
     } else if (dir === -1) {
       approachRun++
+      if (d < minDInApproach) minDInApproach = d
     }
     prevD = d
     prevDir = dir

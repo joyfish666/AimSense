@@ -37,7 +37,7 @@ export default function App() {
       const edpi = calcEDPI(dpi, sensMultiplier)
       const type = route.page
       dbg('app:finish', { type, snap, eDPI: edpi })
-      const analysis = analyzeTest({ [type]: { metrics }, type, eDPI: edpi, history: records })
+      const analysis = analyzeTest({ [type]: { metrics }, type, eDPI: edpi, history: records, sensMultiplier })
       const record = {
         id: newId(),
         type,
