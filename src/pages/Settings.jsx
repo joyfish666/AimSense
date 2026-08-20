@@ -8,7 +8,6 @@ import RecordList from '../components/RecordList.jsx'
 import DebugPanel from '../components/DebugPanel.jsx'
 
 const SENS_STEPS = [-0.2, -0.1, -0.05, 0.05, 0.1, 0.2]
-const DPI_STEPS = [-400, -100, 100, 400]
 
 export default function Settings({ settings, setSettings, records, onDeleteRecord, onStart }) {
   const [dpi, setDpi] = useState(String(settings.dpi ?? 800))
@@ -38,16 +37,9 @@ export default function Settings({ settings, setSettings, records, onDeleteRecor
   const adjustSens = (delta) => {
     const cur = sensTrim === '' || Number.isNaN(Number(sensTrim)) ? 1 : Number(sensTrim)
     const next = Math.max(0.05, Math.min(5, Math.round((cur + delta) * 100) / 100))
-    const str = String(next).replace(/\.0+$/, '')
+    const str = String(next).replace(/\.00$/, '')
     setSens(str)
     dbg('settings:sens-quick', { delta, from: cur, to: next })
-  }
-
-  const adjustDpi = (delta) => {
-    const cur = dpiTrim === '' || Number.isNaN(Number(dpiTrim)) ? 800 : Number(dpiTrim)
-    const next = Math.max(100, Math.min(30000, cur + delta))
-    setDpi(String(next))
-    dbg('settings:dpi-quick', { delta, from: cur, to: next })
   }
 
   const handleStart = (type) => {
@@ -77,28 +69,22 @@ export default function Settings({ settings, setSettings, records, onDeleteRecor
             <Icon name="mouse" size={17} /> 鼠标设置 <span className="muted" style={{ fontWeight: 400, fontSize: 12 }}>（选填，不填也能直接测试）</span>
           </h2>
           <p className="muted" style={{ fontSize: 12.5, margin: '-8px 0 14px' }}>
-            填了用于计算 eDPI；不填则按页面灵敏度 <b>1.0</b> 测试，结束后仍会给出“调高/调低”方向建议与页面灵敏度推荐。
+            建议填写你的鼠标 DPI，仅用于计算 eDPI（不影响页面灵敏度）；不填也能直接测试，系统按页面灵敏度 <b>1.0</b> 进行。
           </p>
           <div className="field-row">
             <label htmlFor="dpi-input">鼠标 DPI</label>
             <div className="field-ctl">
               <div className={`input-wrap ${dpiErr ? 'invalid' : ''}`}>
-                <input id="dpi-input" type="number" min="100" step="50" value={dpi} onChange={(e) => setDpi2(e.target.value)} placeholder="选填，如 800" />
+                <input id="dpi-input" type="number" min="100" step="50" value={dpi} onChange={(e) => setDpi2(e.target.value)} placeholder="建议填写，如 800（仅算 eDPI）" />
                 <span className="input-suffix">DPI</span>
               </div>
-              <div className="quick-group">
-                {DPI_STEPS.map((d) => (
-                  <button key={d} type="button" className="btn btn-secondary btn-quick" onClick={() => adjustDpi(d)}>
-                    {d > 0 ? `+${d}` : d}
-                  </button>
-                ))}
-              </div>
               {dpiErr && <span className="field-err">{dpiErr}</span>}
+              <span className="muted" style={{ fontSize: 11.5 }}>仅算 eDPI，改不了鼠标硬件</span>
             </div>
           </div>
 
           <div className="field-row">
-            <label htmlFor="sens-input">游戏灵敏度倍率</label>
+            <label htmlFor="sens-input">页面灵敏度倍率</label>
             <div className="field-ctl">
               <input
                 id="sens-slider"
@@ -133,9 +119,9 @@ export default function Settings({ settings, setSettings, records, onDeleteRecor
                   type="button"
                   className={`btn btn-secondary btn-quick ${s > 0 ? 'btn-quick-up' : 'btn-quick-down'}`}
                   onClick={() => adjustSens(s)}
-                  title={`灵敏度 ${s > 0 ? '+' : ''}${s}`}
+                  title={`灵敏度 ${s > 0 ? '+' : ''}${s.toFixed(2)}`}
                 >
-                  {s > 0 ? `+${s.toFixed(2).replace('0.', '.')}` : s.toFixed(2).replace('0.', '.').replace('-0', '-.')}
+                  {s > 0 ? `+${s.toFixed(2)}` : s.toFixed(2)}
                 </button>
               ))}
             </div>
@@ -197,9 +183,9 @@ export default function Settings({ settings, setSettings, records, onDeleteRecor
             <Icon name="info" size={17} /> 使用说明
           </h2>
           <ol className="steps">
-            <li>（可选）设置鼠标 DPI 与游戏内灵敏度倍率，系统自动计算 eDPI</li>
+            <li>（可选）填写鼠标 DPI 用于计算 eDPI；页面灵敏度倍率控制测试内准星速度</li>
             <li>分别完成定位与跟枪测试，得出技能无关的表现分析</li>
-            <li>用快速按钮微调灵敏度（±0.05/0.1/0.2）重复测试，对比得分曲线，找出最佳 eDPI</li>
+            <li>用快速按钮微调页面灵敏度（±0.05/0.1/0.2）重复测试，对比得分曲线，找出最佳 eDPI</li>
           </ol>
         </section>
 

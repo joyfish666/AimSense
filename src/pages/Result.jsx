@@ -177,7 +177,7 @@ export default function Result({ record, records, onRetest, onRestartSame, onSwi
                   onClick={() => onAdjustRetest?.(d)}
                   title={`调至 ${next.toFixed(2)} 再测`}
                 >
-                  {d > 0 ? `+${d.toFixed(2).replace('0.', '.')}` : d.toFixed(2).replace('0.', '.').replace('-0', '-.')} → {next.toFixed(2)}
+                  {d > 0 ? `+${d.toFixed(2)}` : d.toFixed(2)} → {next.toFixed(2)}
                 </button>
               )
             })}
