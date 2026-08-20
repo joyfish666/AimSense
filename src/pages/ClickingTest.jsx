@@ -7,7 +7,7 @@ import { usePointerAim } from '../hooks/usePointerAim.js'
 
 const TARGET_COUNT = 20
 
-export default function ClickingTest({ onFinish, eDPI, sensMultiplier }) {
+export default function ClickingTest({ onFinish, onExit, eDPI, sensMultiplier }) {
   const s = window.innerHeight / 1080
   const diameter = Math.max(24, 40 * s)
   const margin = Math.max(40, 80 * s)
@@ -59,11 +59,16 @@ export default function ClickingTest({ onFinish, eDPI, sensMultiplier }) {
             <ul className="overlay-steps">
               <li>共 {TARGET_COUNT} 个目标，点击球体中心</li>
               <li>开始后鼠标被锁定，移动鼠标控制准星</li>
-              <li>未点中不计分，可继续点直到命中</li>
+              <li>按 ESC 可随时解除锁定并暂停 / 退出</li>
             </ul>
             <button className="btn btn-primary" onClick={handleStart}>
               开始测试 <Icon name="arrow-right" size={15} />
             </button>
+            {onExit && (
+              <button className="btn btn-ghost" style={{ marginTop: 8 }} onClick={onExit}>
+                返回首页
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -74,11 +79,18 @@ export default function ClickingTest({ onFinish, eDPI, sensMultiplier }) {
             <span className="overlay-icon">
               <Icon name="crosshair" size={28} />
             </span>
-            <h2>鼠标已解锁</h2>
-            <p className="overlay-sub">{aim.lockHint || '按 ESC 会退出锁定，测试已暂停'}</p>
-            <button className="btn btn-primary" onClick={aim.lock}>
-              重新锁定 <Icon name="arrow-right" size={15} />
-            </button>
+            <h2>已暂停</h2>
+            <p className="overlay-sub">按 ESC 已解除鼠标锁定，测试已暂停</p>
+            {aim.lockHint && <p className="overlay-hint">{aim.lockHint}</p>}
+            <div className="overlay-actions">
+              <button className="btn btn-primary" onClick={aim.lock}>
+                重新锁定 <Icon name="arrow-right" size={15} />
+              </button>
+              <button className="btn btn-secondary" onClick={onExit}>
+                退出测试
+              </button>
+            </div>
+            <p className="overlay-tip">提示：按 ESC 解除锁定后，可选择继续或退出</p>
           </div>
         </div>
       )}
@@ -86,6 +98,7 @@ export default function ClickingTest({ onFinish, eDPI, sensMultiplier }) {
       {phase === 'running' && (
         <>
           <HUD left={`${hits} / ${TARGET_COUNT}`} right={`${eDPI} eDPI`} />
+          {aim.locked && <div className="esc-hint">按 ESC 解除鼠标锁定</div>}
           {ball && <TargetBall x={ball.x} y={ball.y} diameter={diameter} />}
           <Crosshair x={aim.pos.x} y={aim.pos.y} />
         </>

@@ -61,12 +61,33 @@ export default function App() {
     setRecords((prev) => prev.filter((r) => r.id !== id))
   }
 
-  const handleRetest = () => setRoute({ page: 'settings' })
+  const handleRetest = () => {
+    if (document.pointerLockElement) document.exitPointerLock()
+    setRoute({ page: 'settings' })
+  }
+  const handleExitTest = useCallback(() => {
+    if (document.pointerLockElement) document.exitPointerLock()
+    setRoute({ page: 'settings' })
+  }, [])
+  const handleRestartSame = useCallback(() => {
+    const r = route.record
+    if (!r) return setRoute({ page: 'settings' })
+    const snap = { dpi: r.dpi, sensMultiplier: r.sensMultiplier }
+    setRoute({ page: r.type, settings: snap })
+  }, [route.record])
+  const handleSwitchTest = useCallback(() => {
+    const r = route.record
+    if (!r) return setRoute({ page: 'settings' })
+    const nextType = r.type === 'clicking' ? 'tracking' : 'clicking'
+    const snap = { dpi: r.dpi, sensMultiplier: r.sensMultiplier }
+    setRoute({ page: nextType, settings: snap })
+  }, [route.record])
 
   if (route.page === 'clicking') {
     return (
       <ClickingTest
         onFinish={handleFinish}
+        onExit={handleExitTest}
         eDPI={calcEDPI(route.settings.dpi, route.settings.sensMultiplier)}
         sensMultiplier={route.settings.sensMultiplier}
       />
@@ -76,6 +97,7 @@ export default function App() {
     return (
       <TrackingTest
         onFinish={handleFinish}
+        onExit={handleExitTest}
         eDPI={calcEDPI(route.settings.dpi, route.settings.sensMultiplier)}
         sensMultiplier={route.settings.sensMultiplier}
       />
@@ -84,7 +106,13 @@ export default function App() {
   if (route.page === 'result') {
     return (
       <div className="route" key="result">
-        <Result record={route.record} records={records} onRetest={handleRetest} />
+        <Result
+          record={route.record}
+          records={records}
+          onRetest={handleRetest}
+          onRestartSame={handleRestartSame}
+          onSwitchTest={handleSwitchTest}
+        />
       </div>
     )
   }

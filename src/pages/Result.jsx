@@ -84,7 +84,7 @@ function fmtPct(v) {
   return `${(v * 100).toFixed(0)}%`
 }
 
-export default function Result({ record, records, onRetest }) {
+export default function Result({ record, records, onRetest, onRestartSame, onSwitchTest }) {
   const { score, suggestion, signals } = record.analysis
   const shownScore = useCountUp(score, 900)
   const best = records.reduce((a, r) => (r.score > a.score ? r : a), record)
@@ -104,6 +104,8 @@ export default function Result({ record, records, onRetest }) {
           ? '可能偏低'
           : '偏低'
         : '保持'
+  const otherLabel = record.type === 'clicking' ? '去做跟枪测试' : '去做定位测试'
+  const sameLabel = record.type === 'clicking' ? '重测定位' : '重测跟枪'
 
   return (
     <>
@@ -117,9 +119,17 @@ export default function Result({ record, records, onRetest }) {
               <b>{record.eDPI} eDPI</b> · {new Date(record.timestamp).toLocaleString('zh-CN')}
             </p>
           </div>
-          <button className="btn btn-primary" onClick={onRetest}>
-            <Icon name="refresh" size={15} /> 修改灵敏度再测
-          </button>
+          <div className="result-header-actions">
+            <button className="btn btn-secondary" onClick={onRestartSame}>
+              <Icon name="refresh" size={15} /> {sameLabel}
+            </button>
+            <button className="btn btn-secondary" onClick={onSwitchTest}>
+              <Icon name="track" size={15} /> {otherLabel}
+            </button>
+            <button className="btn btn-primary" onClick={onRetest}>
+              <Icon name="sliders" size={15} /> 修改灵敏度再测
+            </button>
+          </div>
         </header>
 
         <section className={`card result-hero ${isBest ? 'card-best' : ''}`}>
